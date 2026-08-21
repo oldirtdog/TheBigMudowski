@@ -1,10 +1,14 @@
 const net = require('net');
 const { rooms } = require('./world');
+const { loadPlayers, savePlayers } = require('./persistence');
 
 const PORT = 4000;
 
 // All connected players, keyed by socket.
 const players = new Map();
+
+// Saved player data keyed by name, e.g. { Dude: { roomId: 'lanes' } }.
+const savedPlayers = loadPlayers();
 
 function describeRoom(room, viewer) {
   const exits = Object.keys(room.exits).join(', ') || 'none';
@@ -107,13 +111,15 @@ const server = net.createServer((socket) => {
         socket.write('Please enter a name: ');
         return;
       }
-      player = { name, socket, roomId: 'dude_apartment' };
+      const saved = savedPlayers[name];
+      const startRoomId = saved && rooms[saved.roomId] ? saved.roomId : 'dude_apartment';
+      player = { name, socket, roomId: startRoomId };
       players.set(socket, player);
-      rooms.dude_apartment.players.add(player);
+      rooms[startRoomId].players.add(player);
       stage = 'playing';
       socket.write(`\r\nWelcome, ${name}!\r\n`);
-      socket.write(describeRoom(rooms.dude_apartment, player) + '> ');
-      broadcastToRoom(rooms.dude_apartment, `${name} arrives.`, socket);
+      socket.write(describeRoom(rooms[startRoomId], player) + '> ');
+      broadcastToRoom(rooms[startRoomId], `${name} arrives.`, socket);
       return;
     }
 
@@ -137,6 +143,8 @@ const server = net.createServer((socket) => {
       room.players.delete(player);
       broadcastToRoom(room, `${player.name} has disconnected.`);
       players.delete(socket);
+      savedPlayers[player.name] = { roomId: player.roomId };
+      savePlayers(savedPlayers);
     }
   });
 
