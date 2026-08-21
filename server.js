@@ -107,13 +107,13 @@ const server = net.createServer((socket) => {
         socket.write('Please enter a name: ');
         return;
       }
-      player = { name, socket, roomId: 'town_square' };
+      player = { name, socket, roomId: 'dude_apartment' };
       players.set(socket, player);
-      rooms.town_square.players.add(player);
+      rooms.dude_apartment.players.add(player);
       stage = 'playing';
       socket.write(`\r\nWelcome, ${name}!\r\n`);
-      socket.write(describeRoom(rooms.town_square, player) + '> ');
-      broadcastToRoom(rooms.town_square, `${name} arrives.`, socket);
+      socket.write(describeRoom(rooms.dude_apartment, player) + '> ');
+      broadcastToRoom(rooms.dude_apartment, `${name} arrives.`, socket);
       return;
     }
 
