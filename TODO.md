@@ -6,9 +6,9 @@
 - [x] Big Lebowski-themed world (7 rooms)
 
 ## Persistence
-- [ ] Save player data (name, location) to disk
-- [ ] Load player data back in on reconnect
-- [ ] Decide on simple storage format (e.g. JSON file) vs. a database
+- [x] Save player data (name, location) to disk
+- [x] Load player data back in on reconnect
+- [x] Decide on simple storage format (e.g. JSON file) vs. a database
 
 ## World content
 - [ ] Add items players can pick up / drop (e.g. a rug, a bowling ball)
