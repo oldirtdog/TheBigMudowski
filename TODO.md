@@ -25,7 +25,7 @@
 
 ## Character classes
 - [ ] Design a class system with The Dude, Walter, and Donny as the base classes
-- [ ] Define what makes each class distinct (stats, abilities, or just flavor/role-play differences)
+- [ ] Define what makes each class distinct (flavor/role-play command for now; stats/abilities once combat exists)
 - [ ] Let players pick a class at character creation
 
 ## Main storyline

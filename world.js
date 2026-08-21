@@ -19,7 +19,14 @@ const rooms = {
     id: 'lanes',
     name: 'The Bowling Alley',
     description: 'Rows of gleaming lanes stretch out under buzzing fluorescent lights. The rumble of rolling balls and clattering pins never quite stops.',
-    exits: { west: 'parking_lot' },
+    exits: { west: 'parking_lot', north: 'sobchak_security' },
+    players: new Set(),
+  },
+  sobchak_security: {
+    id: 'sobchak_security',
+    name: 'Sobchak Security',
+    description: "A cramped office lined with security catalogs and a small arsenal of surplus gear. A hand-lettered sign on the desk reads 'RULES ARE RULES.'",
+    exits: { south: 'lanes' },
     players: new Set(),
   },
   diner: {

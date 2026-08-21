@@ -1,6 +1,7 @@
 const net = require('net');
 const { rooms } = require('./world');
 const { loadPlayers, savePlayers } = require('./persistence');
+const { CLASSES } = require('./classes');
 
 const PORT = 4000;
 
@@ -39,6 +40,14 @@ function handleCommand(player, line) {
   const [cmd, ...rest] = input.split(/\s+/);
   const arg = rest.join(' ');
   const room = rooms[player.roomId];
+  const playerClass = CLASSES[player.className];
+
+  if (playerClass && cmd.toLowerCase() === playerClass.command) {
+    const message = playerClass.action(player);
+    broadcastToRoom(room, message, player.socket);
+    player.socket.write(`${message}\r\n> `);
+    return;
+  }
 
   switch (cmd.toLowerCase()) {
     case 'look':
@@ -82,7 +91,9 @@ function handleCommand(player, line) {
     }
 
     case 'who': {
-      const names = [...players.values()].map((p) => p.name).join(', ');
+      const names = [...players.values()]
+        .map((p) => `${p.name} (${CLASSES[p.className].label})`)
+        .join(', ');
       player.socket.write(`Online: ${names}\r\n> `);
       break;
     }
@@ -103,6 +114,24 @@ const server = net.createServer((socket) => {
   let stage = 'login';
   let player = null;
   let buffer = '';
+  let pendingName = null;
+
+  function promptClassChoice() {
+    const options = Object.values(CLASSES)
+      .map((c) => `  ${c.id} - ${c.label}: ${c.description}`)
+      .join('\r\n');
+    socket.write(`\r\nChoose your class:\r\n${options}\r\n> `);
+  }
+
+  function finishLogin(name, className, roomId) {
+    player = { name, socket, roomId, className };
+    players.set(socket, player);
+    rooms[roomId].players.add(player);
+    stage = 'playing';
+    socket.write(`\r\nWelcome, ${name} the ${CLASSES[className].label}!\r\n`);
+    socket.write(describeRoom(rooms[roomId], player) + '> ');
+    broadcastToRoom(rooms[roomId], `${name} arrives.`, socket);
+  }
 
   function handleLine(input) {
     if (stage === 'login') {
@@ -112,14 +141,26 @@ const server = net.createServer((socket) => {
         return;
       }
       const saved = savedPlayers[name];
-      const startRoomId = saved && rooms[saved.roomId] ? saved.roomId : 'dude_apartment';
-      player = { name, socket, roomId: startRoomId };
-      players.set(socket, player);
-      rooms[startRoomId].players.add(player);
-      stage = 'playing';
-      socket.write(`\r\nWelcome, ${name}!\r\n`);
-      socket.write(describeRoom(rooms[startRoomId], player) + '> ');
-      broadcastToRoom(rooms[startRoomId], `${name} arrives.`, socket);
+      if (saved && CLASSES[saved.className]) {
+        const roomId = rooms[saved.roomId] ? saved.roomId : CLASSES[saved.className].startRoomId;
+        finishLogin(name, saved.className, roomId);
+        return;
+      }
+      pendingName = name;
+      stage = 'choose_class';
+      promptClassChoice();
+      return;
+    }
+
+    if (stage === 'choose_class') {
+      const className = input.trim().toLowerCase();
+      if (!CLASSES[className]) {
+        socket.write(`Not a valid class. Choose one of: ${Object.keys(CLASSES).join(', ')}\r\n> `);
+        return;
+      }
+      const saved = savedPlayers[pendingName];
+      const roomId = saved && rooms[saved.roomId] ? saved.roomId : CLASSES[className].startRoomId;
+      finishLogin(pendingName, className, roomId);
       return;
     }
 
@@ -143,7 +184,7 @@ const server = net.createServer((socket) => {
       room.players.delete(player);
       broadcastToRoom(room, `${player.name} has disconnected.`);
       players.delete(socket);
-      savedPlayers[player.name] = { roomId: player.roomId };
+      savedPlayers[player.name] = { roomId: player.roomId, className: player.className };
       savePlayers(savedPlayers);
     }
   });
