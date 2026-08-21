@@ -10,6 +10,12 @@
 - [x] Load player data back in on reconnect
 - [x] Decide on simple storage format (e.g. JSON file) vs. a database
 
+## Accounts
+- [ ] Move from name-only login to real accounts (username + password)
+- [ ] Store passwords securely (hashed, never plain text)
+- [ ] Prevent one account name from being used by two people at once
+- [ ] Tie saved player data to the account instead of just the typed name
+
 ## World content
 - [ ] Add items players can pick up / drop (e.g. a rug, a bowling ball)
 - [ ] Add NPCs to rooms (e.g. the Dude's landlord)
