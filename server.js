@@ -2,6 +2,7 @@ const net = require('net');
 const { rooms } = require('./world');
 const { loadPlayers, savePlayers } = require('./persistence');
 const { CLASSES } = require('./classes');
+const { version: VERSION } = require('./package.json');
 
 const PORT = 4000;
 
@@ -110,16 +111,18 @@ function handleCommand(player, line) {
 }
 
 const server = net.createServer((socket) => {
-  socket.write('Welcome to the MUD!\r\nWhat is your name? ');
+  socket.write(`Welcome to the MUD! (v${VERSION})\r\nWhat is your name? `);
 
   let stage = 'login';
   let player = null;
   let buffer = '';
   let pendingName = null;
 
+  const classList = Object.values(CLASSES);
+
   function promptClassChoice() {
-    const options = Object.values(CLASSES)
-      .map((c) => `  ${c.id} - ${c.label}: ${c.description}`)
+    const options = classList
+      .map((c, i) => `  ${i + 1}. ${c.label}: ${c.description}`)
       .join('\r\n');
     socket.write(`\r\nChoose your class:\r\n${options}\r\n> `);
   }
@@ -154,14 +157,14 @@ const server = net.createServer((socket) => {
     }
 
     if (stage === 'choose_class') {
-      const className = input.trim().toLowerCase();
-      if (!CLASSES[className]) {
-        socket.write(`Not a valid class. Choose one of: ${Object.keys(CLASSES).join(', ')}\r\n> `);
+      const choice = classList[parseInt(input.trim(), 10) - 1];
+      if (!choice) {
+        socket.write(`Not a valid choice. Enter a number from 1 to ${classList.length}.\r\n> `);
         return;
       }
       const saved = savedPlayers[pendingName];
-      const roomId = saved && rooms[saved.roomId] ? saved.roomId : CLASSES[className].startRoomId;
-      finishLogin(pendingName, className, roomId);
+      const roomId = saved && rooms[saved.roomId] ? saved.roomId : choice.startRoomId;
+      finishLogin(pendingName, choice.id, roomId);
       return;
     }
 

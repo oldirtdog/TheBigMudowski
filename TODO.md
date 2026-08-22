@@ -1,5 +1,9 @@
 # MUD Roadmap
 
+## Project identity
+- [ ] Pick a real name for the game (currently just "the MUD")
+- [ ] Set up separate dev and prod versions via `NODE_ENV` (separate port, separate save file, `-dev` shown in welcome banner)
+
 ## Foundation
 - [x] Basic telnet server (login, look, movement, say, who, quit)
 - [x] Project scaffolding (git, package.json, .gitignore)
