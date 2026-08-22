@@ -28,6 +28,9 @@
 - [ ] Define what makes each class distinct (flavor/role-play command for now; stats/abilities once combat exists)
 - [ ] Let players pick a class at character creation
 
+## Items to create
+- [ ] (add items here as we think of them)
+
 ## Main storyline
 - [ ] Outline the story beats from the movie as an in-game quest line
 - [ ] Add quest/story state tracking per player (which beats they've completed)

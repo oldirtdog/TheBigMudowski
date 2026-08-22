@@ -41,9 +41,10 @@ function handleCommand(player, line) {
   const arg = rest.join(' ');
   const room = rooms[player.roomId];
   const playerClass = CLASSES[player.className];
+  const classCommand = playerClass && playerClass.commands.find((c) => c.command === cmd.toLowerCase());
 
-  if (playerClass && cmd.toLowerCase() === playerClass.command) {
-    const message = playerClass.action(player);
+  if (classCommand) {
+    const message = classCommand.action(player);
     broadcastToRoom(room, message, player.socket);
     player.socket.write(`${message}\r\n> `);
     return;
