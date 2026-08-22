@@ -39,6 +39,7 @@
 - [ ] Outline the story beats from the movie as an in-game quest line
 - [ ] Add quest/story state tracking per player (which beats they've completed)
 - [ ] Add story-triggering NPCs, items, or room events
+- [ ] Story mode
 
 ## Gameplay commands
 - [ ] Inventory command (`inventory` / `i`)
@@ -50,3 +51,7 @@
 - [ ] Handle edge cases (empty names, duplicate names, disconnects mid-command)
 - [ ] Basic tests for room navigation and commands
 - [ ] Colored/formatted output for terminal clients
+
+## Deployment (long term)
+- [ ] Move the server to Jonathan's home server
+- [ ] Set up public hosting (open port/firewall, keep process running, point a doroyal.com subdomain to it)
