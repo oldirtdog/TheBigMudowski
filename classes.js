@@ -6,6 +6,7 @@ const CLASSES = {
     label: 'The Dude',
     description: 'Takes it easy. Prefers not to be hassled.',
     startRoomId: 'dude_apartment',
+    welcomeMessage: (player) => `Take it easy, ${player.name}. The rug really tied the room together.`,
     commands: [
       {
         command: 'abide',
@@ -22,6 +23,7 @@ const CLASSES = {
     label: 'Walter',
     description: 'Has rules, and by God, people are going to follow them.',
     startRoomId: 'parking_lot',
+    welcomeMessage: (player) => `Listen up, ${player.name}. There are rules, and you're going to follow them.`,
     commands: [
       {
         command: 'rules',
@@ -38,6 +40,7 @@ const CLASSES = {
     label: 'Donny',
     description: "A little out of the loop, but always up for a frame.",
     startRoomId: 'lanes',
+    welcomeMessage: (player) => `Hey, ${player.name}! Good to see you. What's going on?`,
     commands: [
       {
         command: 'confused',

@@ -2,11 +2,13 @@ const net = require('net');
 const { rooms } = require('./world');
 const { loadPlayers, savePlayers } = require('./persistence');
 const { CLASSES } = require('./classes');
+const { hashPassword, verifyPassword } = require('./auth');
 const { version: pkgVersion } = require('./package.json');
 
 const IS_PROD = process.env.NODE_ENV === 'production';
 const PORT = IS_PROD ? 4000 : 4001;
 const VERSION = IS_PROD ? pkgVersion : `${pkgVersion}-dev`;
+const MAX_PASSWORD_ATTEMPTS = 3;
 
 // All connected players, keyed by socket.
 const players = new Map();
@@ -113,12 +115,15 @@ function handleCommand(player, line) {
 }
 
 const server = net.createServer((socket) => {
-  socket.write(`Welcome to the MUD! (v${VERSION})\r\nWhat is your name? `);
+  socket.write(`Welcome to the MUD! (v${VERSION})\r\nEnter your username: `);
 
   let stage = 'login';
   let player = null;
   let buffer = '';
+  let pendingKey = null;
   let pendingName = null;
+  let pendingPassword = null;
+  let passwordAttempts = 0;
 
   const classList = Object.values(CLASSES);
 
@@ -129,30 +134,90 @@ const server = net.createServer((socket) => {
     socket.write(`\r\nChoose your class:\r\n${options}\r\n> `);
   }
 
-  function finishLogin(name, className, roomId) {
-    player = { name, socket, roomId, className };
+  function finishLogin(key, name, className, roomId) {
+    player = { key, name, socket, roomId, className };
     players.set(socket, player);
     rooms[roomId].players.add(player);
     stage = 'playing';
-    socket.write(`\r\nWelcome, ${name} the ${CLASSES[className].label}!\r\n`);
+    socket.write(`\r\n${CLASSES[className].welcomeMessage(player)}\r\n`);
     socket.write(describeRoom(rooms[roomId], player) + '> ');
     broadcastToRoom(rooms[roomId], `${name} arrives.`, socket);
   }
 
   function handleLine(input) {
     if (stage === 'login') {
-      const name = input.trim();
-      if (!name) {
-        socket.write('Please enter a name: ');
+      const rawName = input.trim();
+      if (!rawName) {
+        socket.write('Please enter a username: ');
         return;
       }
-      const saved = savedPlayers[name];
-      if (saved && CLASSES[saved.className]) {
+      const key = rawName.toLowerCase();
+      const alreadyOnline = [...players.values()].some((p) => p.key === key);
+      if (alreadyOnline) {
+        socket.write(`That account is already logged in. Please enter a username: `);
+        return;
+      }
+
+      pendingKey = key;
+      const saved = savedPlayers[key];
+      if (saved && saved.passwordHash) {
+        pendingName = saved.username;
+        passwordAttempts = 0;
+        stage = 'enter_password';
+        socket.write('Password: ');
+        return;
+      }
+      pendingName = rawName;
+      stage = 'create_password';
+      socket.write("That's a new account. Choose a password: ");
+      return;
+    }
+
+    if (stage === 'enter_password') {
+      const saved = savedPlayers[pendingKey];
+      if (verifyPassword(input, saved.salt, saved.passwordHash)) {
         const roomId = rooms[saved.roomId] ? saved.roomId : CLASSES[saved.className].startRoomId;
-        finishLogin(name, saved.className, roomId);
+        finishLogin(pendingKey, pendingName, saved.className, roomId);
         return;
       }
-      pendingName = name;
+      passwordAttempts += 1;
+      if (passwordAttempts >= MAX_PASSWORD_ATTEMPTS) {
+        socket.write('Too many failed attempts. Goodbye.\r\n');
+        socket.end();
+        return;
+      }
+      socket.write('Incorrect password. Password: ');
+      return;
+    }
+
+    if (stage === 'create_password') {
+      if (!input) {
+        socket.write('Password cannot be empty. Choose a password: ');
+        return;
+      }
+      pendingPassword = input;
+      stage = 'confirm_password';
+      socket.write('Confirm password: ');
+      return;
+    }
+
+    if (stage === 'confirm_password') {
+      if (input !== pendingPassword) {
+        pendingPassword = null;
+        stage = 'create_password';
+        socket.write("Passwords didn't match. Choose a password: ");
+        return;
+      }
+      const { salt, hash } = hashPassword(pendingPassword);
+      pendingPassword = null;
+      const existing = savedPlayers[pendingKey];
+      savedPlayers[pendingKey] = { ...existing, username: pendingName, salt, passwordHash: hash };
+      savePlayers(savedPlayers);
+
+      if (existing && CLASSES[existing.className] && rooms[existing.roomId]) {
+        finishLogin(pendingKey, existing.username || pendingName, existing.className, existing.roomId);
+        return;
+      }
       stage = 'choose_class';
       promptClassChoice();
       return;
@@ -164,9 +229,9 @@ const server = net.createServer((socket) => {
         socket.write(`Not a valid choice. Enter a number from 1 to ${classList.length}.\r\n> `);
         return;
       }
-      const saved = savedPlayers[pendingName];
+      const saved = savedPlayers[pendingKey];
       const roomId = saved && rooms[saved.roomId] ? saved.roomId : choice.startRoomId;
-      finishLogin(pendingName, choice.id, roomId);
+      finishLogin(pendingKey, pendingName, choice.id, roomId);
       return;
     }
 
@@ -190,7 +255,12 @@ const server = net.createServer((socket) => {
       room.players.delete(player);
       broadcastToRoom(room, `${player.name} has disconnected.`);
       players.delete(socket);
-      savedPlayers[player.name] = { roomId: player.roomId, className: player.className };
+      savedPlayers[player.key] = {
+        ...savedPlayers[player.key],
+        username: player.name,
+        roomId: player.roomId,
+        className: player.className,
+      };
       savePlayers(savedPlayers);
     }
   });

@@ -17,10 +17,15 @@ Legend: `[ ]` not started · `[~]` built, awaiting your review · `[x]` done, co
 - [x] Decide on simple storage format (e.g. JSON file) vs. a database
 
 ## Accounts
-- [ ] Move from name-only login to real accounts (username + password)
-- [ ] Store passwords securely (hashed, never plain text)
-- [ ] Prevent one account name from being used by two people at once
-- [ ] Tie saved player data to the account instead of just the typed name
+- [~] Move from name-only login to real accounts (username + password, with confirm-on-create; usernames are case-insensitive)
+- [~] Store passwords securely (hashed with `crypto.scrypt` + random salt, never plain text)
+- [~] Prevent one account name from being used by two people at once
+- [~] Tie saved player data to the account instead of just the typed name
+
+## Admin
+- [ ] Admin panel (in-game admin commands or a separate tool)
+- [ ] Reset a user's password
+- [ ] Deactivate / reactivate a user account
 
 ## World content
 - [ ] Add items players can pick up / drop (e.g. a rug, a bowling ball)
@@ -33,6 +38,7 @@ Legend: `[ ]` not started · `[~]` built, awaiting your review · `[x]` done, co
 - [~] Design a class system with The Dude, Walter, and Donny as the base classes
 - [~] Define what makes each class distinct (each has 2 flavor/role-play commands for now; stats/abilities once combat exists)
 - [~] Let players pick a class at character creation (numbered choice at login)
+- [ ] Add multiple welcome messages per class and pick one at random on each login
 
 ## Items to create
 - [ ] (add items here as we think of them)
@@ -53,6 +59,7 @@ Legend: `[ ]` not started · `[~]` built, awaiting your review · `[x]` done, co
 - [ ] Handle edge cases (empty names, duplicate names, disconnects mid-command)
 - [ ] Basic tests for room navigation and commands
 - [ ] Colored/formatted output for terminal clients
+- [ ] Hide password input while typing (needs telnet echo-suppression); encrypt the connection before any public hosting, since passwords currently travel as plain text
 
 ## Deployment (long term)
 - [ ] Move the server to Jonathan's home server
