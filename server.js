@@ -2,9 +2,11 @@ const net = require('net');
 const { rooms } = require('./world');
 const { loadPlayers, savePlayers } = require('./persistence');
 const { CLASSES } = require('./classes');
-const { version: VERSION } = require('./package.json');
+const { version: pkgVersion } = require('./package.json');
 
-const PORT = 4000;
+const IS_PROD = process.env.NODE_ENV === 'production';
+const PORT = IS_PROD ? 4000 : 4001;
+const VERSION = IS_PROD ? pkgVersion : `${pkgVersion}-dev`;
 
 // All connected players, keyed by socket.
 const players = new Map();
@@ -199,5 +201,5 @@ const server = net.createServer((socket) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`MUD server listening on port ${PORT}`);
+  console.log(`MUD server (${IS_PROD ? 'production' : 'development'}, v${VERSION}) listening on port ${PORT}`);
 });

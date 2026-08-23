@@ -4,7 +4,7 @@ Legend: `[ ]` not started · `[~]` built, awaiting your review · `[x]` done, co
 
 ## Project identity
 - [ ] Pick a real name for the game (currently just "the MUD")
-- [ ] Set up separate dev and prod versions via `NODE_ENV` (separate port, separate save file, `-dev` shown in welcome banner)
+- [~] Set up separate dev and prod versions via `NODE_ENV` (`npm run dev` = port 4001, `players.dev.json`, `-dev` version; `npm start` = port 4000, `players.json`)
 
 ## Foundation
 - [x] Basic telnet server (login, look, movement, say, who, quit)

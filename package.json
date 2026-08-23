@@ -4,7 +4,8 @@
   "description": "A telnet-style multi-user dungeon (MUD) server.",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "NODE_ENV=production node server.js",
+    "dev": "NODE_ENV=development node server.js"
   },
   "author": "Jonathan Marlowe",
   "company": "Archetype SC",

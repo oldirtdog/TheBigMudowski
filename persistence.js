@@ -1,7 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const DATA_FILE = path.join(__dirname, 'players.json');
+const IS_PROD = process.env.NODE_ENV === 'production';
+const DATA_FILE = path.join(__dirname, IS_PROD ? 'players.json' : 'players.dev.json');
 
 // Returns saved player data keyed by player name, e.g. { Dude: { roomId: 'lanes' } }.
 function loadPlayers() {
