@@ -1,5 +1,7 @@
 # MUD Roadmap
 
+Legend: `[ ]` not started · `[~]` built, awaiting your review · `[x]` done, confirmed
+
 ## Project identity
 - [ ] Pick a real name for the game (currently just "the MUD")
 - [ ] Set up separate dev and prod versions via `NODE_ENV` (separate port, separate save file, `-dev` shown in welcome banner)
@@ -25,12 +27,12 @@
 - [ ] Add NPCs to rooms (e.g. the Dude's landlord)
 - [ ] Expand the Big Lebowski's mansion into multiple rooms (hallway, pool area, garage, etc.)
 - [ ] Expand Maude's loft into multiple rooms
-- [ ] Add more rooms if the small set feels too cramped
+- [~] Add more rooms if the small set feels too cramped (added Sobchak Security so far)
 
 ## Character classes
-- [ ] Design a class system with The Dude, Walter, and Donny as the base classes
-- [ ] Define what makes each class distinct (flavor/role-play command for now; stats/abilities once combat exists)
-- [ ] Let players pick a class at character creation
+- [~] Design a class system with The Dude, Walter, and Donny as the base classes
+- [~] Define what makes each class distinct (each has 2 flavor/role-play commands for now; stats/abilities once combat exists)
+- [~] Let players pick a class at character creation (numbered choice at login)
 
 ## Items to create
 - [ ] (add items here as we think of them)

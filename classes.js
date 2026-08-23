@@ -27,6 +27,10 @@ const CLASSES = {
         command: 'rules',
         action: (player) => `${player.name} pounds a fist on the nearest surface. "There are rules here, and people are going to follow them!"`,
       },
+      {
+        command: 'rant',
+        action: (player) => `${player.name} launches into a rant about something entirely unrelated.`,
+      },
     ],
   },
   donny: {
@@ -38,6 +42,10 @@ const CLASSES = {
       {
         command: 'confused',
         action: (player) => `${player.name} looks around, still not quite sure what's going on.`,
+      },
+      {
+        command: 'shrug',
+        action: (player) => `${player.name} shrugs it off and goes back to what he was doing.`,
       },
     ],
   },
