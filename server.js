@@ -9,12 +9,17 @@ const IS_PROD = process.env.NODE_ENV === 'production';
 const PORT = IS_PROD ? 4000 : 4001;
 const VERSION = IS_PROD ? pkgVersion : `${pkgVersion}-dev`;
 const MAX_PASSWORD_ATTEMPTS = 3;
+const USERNAME_REGEX = /^[a-zA-Z0-9_]{2,20}$/;
 
 // All connected players, keyed by socket.
 const players = new Map();
 
 // Saved player data keyed by name, e.g. { Dude: { roomId: 'lanes' } }.
 const savedPlayers = loadPlayers();
+
+// Usernames currently mid-registration (chosen a name, haven't finished setting a password yet),
+// so two people can't grab the same new username at once and clobber each other's account.
+const pendingUsernames = new Set();
 
 function describeRoom(room, viewer) {
   const exits = Object.keys(room.exits).join(', ') || 'none';
@@ -96,6 +101,39 @@ function handleCommand(player, line) {
       break;
     }
 
+    case 'inventory':
+    case 'i': {
+      if (player.inventory.length === 0) {
+        player.socket.write("You aren't carrying anything.\r\n> ");
+      } else {
+        player.socket.write(`You are carrying: ${player.inventory.join(', ')}\r\n> `);
+      }
+      break;
+    }
+
+    case 'resetpassword': {
+      if (!player.isAdmin) {
+        player.socket.write(`Unknown command: "${cmd}"\r\n> `);
+        break;
+      }
+      const [targetName, newPassword] = rest;
+      if (!targetName || !newPassword) {
+        player.socket.write('Usage: resetpassword <username> <newpassword>\r\n> ');
+        break;
+      }
+      const targetKey = targetName.toLowerCase();
+      const target = savedPlayers[targetKey];
+      if (!target || !target.passwordHash) {
+        player.socket.write(`No account found for "${targetName}".\r\n> `);
+        break;
+      }
+      const { salt, hash } = hashPassword(newPassword);
+      savedPlayers[targetKey] = { ...target, salt, passwordHash: hash };
+      savePlayers(savedPlayers);
+      player.socket.write(`Password reset for ${target.username}.\r\n> `);
+      break;
+    }
+
     case 'who': {
       const names = [...players.values()]
         .map((p) => `${p.name} (${CLASSES[p.className].label})`)
@@ -115,7 +153,7 @@ function handleCommand(player, line) {
 }
 
 const server = net.createServer((socket) => {
-  socket.write(`Welcome to the MUD! (v${VERSION})\r\nEnter your username: `);
+  socket.write(`Welcome to The Big MUDowski! (v${VERSION})\r\nEnter your username: `);
 
   let stage = 'login';
   let player = null;
@@ -134,8 +172,16 @@ const server = net.createServer((socket) => {
     socket.write(`\r\nChoose your class:\r\n${options}\r\n> `);
   }
 
-  function finishLogin(key, name, className, roomId) {
-    player = { key, name, socket, roomId, className };
+  function finishLogin(key, name, className, roomId, isAdmin, inventory) {
+    player = {
+      key,
+      name,
+      socket,
+      roomId,
+      className,
+      isAdmin: !!isAdmin,
+      inventory: Array.isArray(inventory) ? inventory : [],
+    };
     players.set(socket, player);
     rooms[roomId].players.add(player);
     stage = 'playing';
@@ -151,6 +197,10 @@ const server = net.createServer((socket) => {
         socket.write('Please enter a username: ');
         return;
       }
+      if (!USERNAME_REGEX.test(rawName)) {
+        socket.write('Usernames must be 2-20 characters: letters, numbers, or underscores only. Please enter a username: ');
+        return;
+      }
       const key = rawName.toLowerCase();
       const alreadyOnline = [...players.values()].some((p) => p.key === key);
       if (alreadyOnline) {
@@ -158,15 +208,22 @@ const server = net.createServer((socket) => {
         return;
       }
 
-      pendingKey = key;
       const saved = savedPlayers[key];
       if (saved && saved.passwordHash) {
+        pendingKey = key;
         pendingName = saved.username;
         passwordAttempts = 0;
         stage = 'enter_password';
         socket.write('Password: ');
         return;
       }
+
+      if (pendingUsernames.has(key)) {
+        socket.write('That username is currently being registered by someone else. Please enter a username: ');
+        return;
+      }
+      pendingUsernames.add(key);
+      pendingKey = key;
       pendingName = rawName;
       stage = 'create_password';
       socket.write("That's a new account. Choose a password: ");
@@ -177,7 +234,7 @@ const server = net.createServer((socket) => {
       const saved = savedPlayers[pendingKey];
       if (verifyPassword(input, saved.salt, saved.passwordHash)) {
         const roomId = rooms[saved.roomId] ? saved.roomId : CLASSES[saved.className].startRoomId;
-        finishLogin(pendingKey, pendingName, saved.className, roomId);
+        finishLogin(pendingKey, pendingName, saved.className, roomId, saved.isAdmin, saved.inventory);
         return;
       }
       passwordAttempts += 1;
@@ -191,7 +248,7 @@ const server = net.createServer((socket) => {
     }
 
     if (stage === 'create_password') {
-      if (!input) {
+      if (!input.trim()) {
         socket.write('Password cannot be empty. Choose a password: ');
         return;
       }
@@ -213,9 +270,10 @@ const server = net.createServer((socket) => {
       const existing = savedPlayers[pendingKey];
       savedPlayers[pendingKey] = { ...existing, username: pendingName, salt, passwordHash: hash };
       savePlayers(savedPlayers);
+      pendingUsernames.delete(pendingKey);
 
       if (existing && CLASSES[existing.className] && rooms[existing.roomId]) {
-        finishLogin(pendingKey, existing.username || pendingName, existing.className, existing.roomId);
+        finishLogin(pendingKey, existing.username || pendingName, existing.className, existing.roomId, existing.isAdmin, existing.inventory);
         return;
       }
       stage = 'choose_class';
@@ -231,7 +289,7 @@ const server = net.createServer((socket) => {
       }
       const saved = savedPlayers[pendingKey];
       const roomId = saved && rooms[saved.roomId] ? saved.roomId : choice.startRoomId;
-      finishLogin(pendingKey, pendingName, choice.id, roomId);
+      finishLogin(pendingKey, pendingName, choice.id, roomId, saved && saved.isAdmin, saved && saved.inventory);
       return;
     }
 
@@ -250,6 +308,10 @@ const server = net.createServer((socket) => {
   });
 
   socket.on('close', () => {
+    // Release a new-username registration lock if this connection drops before finishing signup.
+    if (pendingKey) {
+      pendingUsernames.delete(pendingKey);
+    }
     if (player) {
       const room = rooms[player.roomId];
       room.players.delete(player);
@@ -260,6 +322,8 @@ const server = net.createServer((socket) => {
         username: player.name,
         roomId: player.roomId,
         className: player.className,
+        isAdmin: player.isAdmin,
+        inventory: player.inventory,
       };
       savePlayers(savedPlayers);
     }
@@ -271,5 +335,5 @@ const server = net.createServer((socket) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`MUD server (${IS_PROD ? 'production' : 'development'}, v${VERSION}) listening on port ${PORT}`);
+  console.log(`The Big MUDowski server (${IS_PROD ? 'production' : 'development'}, v${VERSION}) listening on port ${PORT}`);
 });
