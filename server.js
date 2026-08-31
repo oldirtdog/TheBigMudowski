@@ -27,10 +27,40 @@ function describeRoom(room, viewer) {
     .filter((p) => p !== viewer)
     .map((p) => p.name);
   let text = `\r\n${room.name}\r\n${room.description}\r\nExits: ${exits}\r\n`;
+  if (room.items.length > 0) {
+    text += `Items here: ${room.items.join(', ')}\r\n`;
+  }
   if (others.length > 0) {
     text += `Also here: ${others.join(', ')}\r\n`;
   }
   return text;
+}
+
+function buildHelpText(player) {
+  const lines = [
+    'Commands:',
+    '  look (l)                       - look around the room',
+    '  north/south/east/west (n/s/e/w) - move between rooms',
+    '  say <message>                  - say something out loud',
+    '  get/take <item>                - pick up an item from the room',
+    '  drop <item>                    - drop an item you are carrying',
+    '  inventory (i)                  - list what you are carrying',
+    '  who                            - list who is online',
+    '  help                           - show this list',
+    '  quit                           - disconnect',
+  ];
+  const playerClass = CLASSES[player.className];
+  if (playerClass) {
+    lines.push('', `${playerClass.label} commands:`);
+    for (const c of playerClass.commands) {
+      lines.push(`  ${c.command.padEnd(31)} - ${c.description || ''}`);
+    }
+  }
+  if (player.isAdmin) {
+    lines.push('', 'Admin commands:');
+    lines.push('  resetpassword <username> <newpassword> - reset a user\'s password');
+  }
+  return lines.join('\r\n');
 }
 
 function broadcastToRoom(room, message, exceptSocket) {
@@ -111,6 +141,45 @@ function handleCommand(player, line) {
       break;
     }
 
+    case 'get':
+    case 'take': {
+      if (!arg) {
+        player.socket.write('Get what?\r\n> ');
+        break;
+      }
+      const itemIndex = room.items.findIndex((i) => i.toLowerCase() === arg.toLowerCase());
+      if (itemIndex === -1) {
+        player.socket.write(`There's no ${arg} here.\r\n> `);
+        break;
+      }
+      const [item] = room.items.splice(itemIndex, 1);
+      player.inventory.push(item);
+      broadcastToRoom(room, `${player.name} picks up the ${item}.`, player.socket);
+      player.socket.write(`You pick up the ${item}.\r\n> `);
+      break;
+    }
+
+    case 'drop': {
+      if (!arg) {
+        player.socket.write('Drop what?\r\n> ');
+        break;
+      }
+      const itemIndex = player.inventory.findIndex((i) => i.toLowerCase() === arg.toLowerCase());
+      if (itemIndex === -1) {
+        player.socket.write(`You aren't carrying a ${arg}.\r\n> `);
+        break;
+      }
+      const [item] = player.inventory.splice(itemIndex, 1);
+      room.items.push(item);
+      broadcastToRoom(room, `${player.name} drops the ${item}.`, player.socket);
+      player.socket.write(`You drop the ${item}.\r\n> `);
+      break;
+    }
+
+    case 'help':
+      player.socket.write(`\r\n${buildHelpText(player)}\r\n> `);
+      break;
+
     case 'resetpassword': {
       if (!player.isAdmin) {
         player.socket.write(`Unknown command: "${cmd}"\r\n> `);
@@ -153,9 +222,7 @@ function handleCommand(player, line) {
 }
 
 const server = net.createServer((socket) => {
-  socket.write(`Welcome to The Big MUDowski! (v${VERSION})\r\nEnter your username: `);
-
-  let stage = 'login';
+  let stage = 'ask_new_or_returning';
   let player = null;
   let buffer = '';
   let pendingKey = null;
@@ -171,6 +238,13 @@ const server = net.createServer((socket) => {
       .join('\r\n');
     socket.write(`\r\nChoose your class:\r\n${options}\r\n> `);
   }
+
+  function promptNewOrReturning() {
+    socket.write('Are you a new or returning player?\r\n  1. New player\r\n  2. Returning player\r\n> ');
+  }
+
+  socket.write(`Welcome to The Big MUDowski! (v${VERSION})\r\n`);
+  promptNewOrReturning();
 
   function finishLogin(key, name, className, roomId, isAdmin, inventory) {
     player = {
@@ -191,42 +265,82 @@ const server = net.createServer((socket) => {
   }
 
   function handleLine(input) {
-    if (stage === 'login') {
+    if (stage === 'ask_new_or_returning') {
+      const choice = input.trim().toLowerCase();
+      if (choice === '1' || choice === 'new' || choice === 'n') {
+        stage = 'new_username';
+        socket.write('Choose a username: ');
+        return;
+      }
+      if (choice === '2' || choice === 'returning' || choice === 'r') {
+        stage = 'returning_username';
+        socket.write('Username: ');
+        return;
+      }
+      socket.write('Not a valid choice. Enter 1 or 2.\r\n> ');
+      return;
+    }
+
+    if (stage === 'new_username') {
       const rawName = input.trim();
+      if (rawName.toLowerCase() === 'back') {
+        stage = 'ask_new_or_returning';
+        promptNewOrReturning();
+        return;
+      }
       if (!rawName) {
         socket.write('Please enter a username: ');
         return;
       }
       if (!USERNAME_REGEX.test(rawName)) {
-        socket.write('Usernames must be 2-20 characters: letters, numbers, or underscores only. Please enter a username: ');
+        socket.write('Usernames must be 2-20 characters: letters, numbers, or underscores only. Choose a username: ');
         return;
       }
       const key = rawName.toLowerCase();
-      const alreadyOnline = [...players.values()].some((p) => p.key === key);
-      if (alreadyOnline) {
-        socket.write(`That account is already logged in. Please enter a username: `);
-        return;
-      }
-
       const saved = savedPlayers[key];
       if (saved && saved.passwordHash) {
-        pendingKey = key;
-        pendingName = saved.username;
-        passwordAttempts = 0;
-        stage = 'enter_password';
-        socket.write('Password: ');
+        socket.write("That username is already registered. If it's yours, type 'back' and choose 'returning' instead. Choose a username: ");
         return;
       }
-
       if (pendingUsernames.has(key)) {
-        socket.write('That username is currently being registered by someone else. Please enter a username: ');
+        socket.write('That username is currently being registered by someone else. Choose a username: ');
         return;
       }
       pendingUsernames.add(key);
       pendingKey = key;
       pendingName = rawName;
       stage = 'create_password';
-      socket.write("That's a new account. Choose a password: ");
+      socket.write('Choose a password: ');
+      return;
+    }
+
+    if (stage === 'returning_username') {
+      const rawName = input.trim();
+      if (rawName.toLowerCase() === 'back') {
+        stage = 'ask_new_or_returning';
+        promptNewOrReturning();
+        return;
+      }
+      if (!rawName) {
+        socket.write('Please enter a username: ');
+        return;
+      }
+      const key = rawName.toLowerCase();
+      const saved = savedPlayers[key];
+      if (!saved || !saved.passwordHash) {
+        socket.write("No account found for that username. Type 'back' to start over, or try again. Username: ");
+        return;
+      }
+      const alreadyOnline = [...players.values()].some((p) => p.key === key);
+      if (alreadyOnline) {
+        socket.write('That account is already logged in. Username: ');
+        return;
+      }
+      pendingKey = key;
+      pendingName = saved.username;
+      passwordAttempts = 0;
+      stage = 'enter_password';
+      socket.write('Password: ');
       return;
     }
 

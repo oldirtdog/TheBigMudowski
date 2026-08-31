@@ -10,10 +10,12 @@ const CLASSES = {
     commands: [
       {
         command: 'abide',
+        description: 'settle back and let it go',
         action: (player) => `${player.name} settles back and lets it go. Just abiding.`,
       },
       {
         command: 'drink',
+        description: 'take a sip of a White Russian',
         action: (player) => `${player.name} takes a slow sip of a White Russian.`,
       },
     ],
@@ -27,10 +29,12 @@ const CLASSES = {
     commands: [
       {
         command: 'rules',
+        description: 'pound the table about the rules',
         action: (player) => `${player.name} pounds a fist on the nearest surface. "There are rules here, and people are going to follow them!"`,
       },
       {
         command: 'rant',
+        description: 'go on a rant',
         action: (player) => `${player.name} launches into a rant about something entirely unrelated.`,
       },
     ],
@@ -44,10 +48,12 @@ const CLASSES = {
     commands: [
       {
         command: 'confused',
+        description: 'look around, confused',
         action: (player) => `${player.name} looks around, still not quite sure what's going on.`,
       },
       {
         command: 'shrug',
+        description: 'shrug it off',
         action: (player) => `${player.name} shrugs it off and goes back to what he was doing.`,
       },
     ],

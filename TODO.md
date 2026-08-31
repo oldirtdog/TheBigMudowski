@@ -17,7 +17,7 @@ Legend: `[ ]` not started · `[~]` built, awaiting your review · `[x]` done, co
 - [x] Decide on simple storage format (e.g. JSON file) vs. a database
 
 ## Accounts
-- [ ] At login, ask upfront whether the player is new or returning, instead of inferring it from the typed username
+- [x] At login, ask upfront whether the player is new or returning, instead of inferring it from the typed username
 - [x] Move from name-only login to real accounts (username + password, with confirm-on-create; usernames are case-insensitive)
 - [x] Store passwords securely (hashed with `crypto.scrypt` + random salt, never plain text)
 - [x] Prevent one account name from being used by two people at once
@@ -30,7 +30,7 @@ Legend: `[ ]` not started · `[~]` built, awaiting your review · `[x]` done, co
 - [ ] Deactivate / reactivate a user account
 
 ## World content
-- [ ] Add items players can pick up / drop (e.g. a rug, a bowling ball)
+- [~] Add items players can pick up / drop (e.g. a rug, a bowling ball) — added a rug, bowling ball, and slice of pie so far; not persisted across server restarts yet
 - [ ] Add NPCs to rooms (e.g. the Dude's landlord)
 - [ ] Expand the Big Lebowski's mansion into multiple rooms (hallway, pool area, garage, etc.)
 - [ ] Expand Maude's loft into multiple rooms
@@ -58,9 +58,10 @@ Legend: `[ ]` not started · `[~]` built, awaiting your review · `[x]` done, co
 
 ## Gameplay commands
 - [x] Inventory command (`inventory` / `i`) — lists carried items and persists per-player; always empty for now since there's nothing to pick up yet
-- [ ] Get/take and drop items
+- [x] Get/take and drop items
 - [ ] Emotes (e.g. `smile`, `laugh`)
-- [ ] Help command listing available commands
+- [x] Help command listing available commands
+- [ ] Room-scoped "who's here" command, separate from global `who` (which lists everyone online) — note `look` already lists other players in the room via "Also here: ...", so this would be a quicker one-word alternative to a full room description
 
 ## Polish
 - [x] Handle edge cases (empty names, duplicate names, disconnects mid-command) — added username character/length validation, a lock so two people can't register the same new username at once, and rejection of whitespace-only passwords
