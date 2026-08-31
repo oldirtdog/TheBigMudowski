@@ -4,7 +4,7 @@ Legend: `[ ]` not started · `[~]` built, awaiting your review · `[x]` done, co
 
 ## Project identity
 - [x] Name the game "The Big MUDowski" and show it in the welcome message alongside the version number (currently just "the MUD")
-- [~] Set up separate dev and prod versions via `NODE_ENV` (`npm run dev` = port 4001, `players.dev.json`, `-dev` version; `npm start` = port 4000, `players.json`)
+- [x] Set up separate dev and prod versions via `NODE_ENV` (`npm run dev` = port 4001, `players.dev.json`, `-dev` version; `npm start` = port 4000, `players.json`)
 
 ## Foundation
 - [x] Basic telnet server (login, look, movement, say, who, quit)
@@ -18,15 +18,15 @@ Legend: `[ ]` not started · `[~]` built, awaiting your review · `[x]` done, co
 
 ## Accounts
 - [ ] At login, ask upfront whether the player is new or returning, instead of inferring it from the typed username
-- [~] Move from name-only login to real accounts (username + password, with confirm-on-create; usernames are case-insensitive)
-- [~] Store passwords securely (hashed with `crypto.scrypt` + random salt, never plain text)
-- [~] Prevent one account name from being used by two people at once
-- [~] Tie saved player data to the account instead of just the typed name
+- [x] Move from name-only login to real accounts (username + password, with confirm-on-create; usernames are case-insensitive)
+- [x] Store passwords securely (hashed with `crypto.scrypt` + random salt, never plain text)
+- [x] Prevent one account name from being used by two people at once
+- [x] Tie saved player data to the account instead of just the typed name
 
 ## Admin
 - [ ] Admin panel (in-game admin commands or a separate tool)
 - [ ] Support a dedicated admin account type with no character/class, restricted to administrative commands only (distinct from today's approach of flagging a regular player account as admin)
-- [~] Reset a user's password (admin-only `resetpassword <username> <newpassword>` command; mark an account as admin by hand-setting `isAdmin: true` in its save-file entry until a real admin panel exists)
+- [x] Reset a user's password (admin-only `resetpassword <username> <newpassword>` command; mark an account as admin by hand-setting `isAdmin: true` in its save-file entry until a real admin panel exists)
 - [ ] Deactivate / reactivate a user account
 
 ## World content
@@ -34,12 +34,12 @@ Legend: `[ ]` not started · `[~]` built, awaiting your review · `[x]` done, co
 - [ ] Add NPCs to rooms (e.g. the Dude's landlord)
 - [ ] Expand the Big Lebowski's mansion into multiple rooms (hallway, pool area, garage, etc.)
 - [ ] Expand Maude's loft into multiple rooms
-- [~] Add more rooms if the small set feels too cramped (added Sobchak Security so far)
+- [x] Add more rooms if the small set feels too cramped (added Sobchak Security so far)
 
 ## Character classes
-- [~] Design a class system with The Dude, Walter, and Donny as the base classes
-- [~] Define what makes each class distinct (each has 2 flavor/role-play commands for now; stats/abilities once combat exists)
-- [~] Let players pick a class at character creation (numbered choice at login)
+- [x] Design a class system with The Dude, Walter, and Donny as the base classes
+- [x] Define what makes each class distinct (each has 2 flavor/role-play commands for now; stats/abilities once combat exists)
+- [x] Let players pick a class at character creation (numbered choice at login)
 - [ ] Add multiple welcome messages per class and pick one at random on each login
 
 ## Items to create
@@ -57,13 +57,13 @@ Legend: `[ ]` not started · `[~]` built, awaiting your review · `[x]` done, co
 - [ ] Base the story on popular fan theories rather than strict movie canon, and use it to fill in character backstories
 
 ## Gameplay commands
-- [~] Inventory command (`inventory` / `i`) — lists carried items and persists per-player; always empty for now since there's nothing to pick up yet
+- [x] Inventory command (`inventory` / `i`) — lists carried items and persists per-player; always empty for now since there's nothing to pick up yet
 - [ ] Get/take and drop items
 - [ ] Emotes (e.g. `smile`, `laugh`)
 - [ ] Help command listing available commands
 
 ## Polish
-- [~] Handle edge cases (empty names, duplicate names, disconnects mid-command) — added username character/length validation, a lock so two people can't register the same new username at once, and rejection of whitespace-only passwords
+- [x] Handle edge cases (empty names, duplicate names, disconnects mid-command) — added username character/length validation, a lock so two people can't register the same new username at once, and rejection of whitespace-only passwords
 - [ ] Basic tests for room navigation and commands
 - [ ] Colored/formatted output for terminal clients
 - [ ] Mask password input while typing (show `*` per keystroke instead of the typed character; needs telnet echo-suppression); encrypt the connection before any public hosting, since passwords currently travel as plain text
