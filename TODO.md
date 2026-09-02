@@ -59,9 +59,9 @@ Legend: `[ ]` not started · `[~]` built, awaiting your review · `[x]` done, co
 ## Gameplay commands
 - [x] Inventory command (`inventory` / `i`) — lists carried items and persists per-player; always empty for now since there's nothing to pick up yet
 - [x] Get/take and drop items
-- [ ] Emotes (e.g. `smile`, `laugh`)
+- [~] Emotes (e.g. `smile`, `laugh`) — added smile, laugh, wave, nod, cry, dance, cheer, sigh, bow, clap
 - [x] Help command listing available commands
-- [ ] Room-scoped "who's here" command, separate from global `who` (which lists everyone online) — note `look` already lists other players in the room via "Also here: ...", so this would be a quicker one-word alternative to a full room description
+- [~] Room-scoped "who's here" command, separate from global `who` (which lists everyone online) — note `look` already lists other players in the room via "Also here: ...", so this would be a quicker one-word alternative to a full room description; added as `here`
 
 ## Polish
 - [x] Handle edge cases (empty names, duplicate names, disconnects mid-command) — added username character/length validation, a lock so two people can't register the same new username at once, and rejection of whitespace-only passwords

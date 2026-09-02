@@ -2,6 +2,7 @@ const net = require('net');
 const { rooms } = require('./world');
 const { loadPlayers, savePlayers } = require('./persistence');
 const { CLASSES } = require('./classes');
+const { EMOTES } = require('./emotes');
 const { hashPassword, verifyPassword } = require('./auth');
 const { version: pkgVersion } = require('./package.json');
 
@@ -46,9 +47,11 @@ function buildHelpText(player) {
     '  drop <item>                    - drop an item you are carrying',
     '  inventory (i)                  - list what you are carrying',
     '  who                            - list who is online',
+    '  here                           - list who else is in this room',
     '  help                           - show this list',
     '  quit                           - disconnect',
   ];
+  lines.push('', 'Emotes:', `  ${EMOTES.map((e) => e.command).join(', ')}`);
   const playerClass = CLASSES[player.className];
   if (playerClass) {
     lines.push('', `${playerClass.label} commands:`);
@@ -85,6 +88,14 @@ function handleCommand(player, line) {
 
   if (classCommand) {
     const message = classCommand.action(player);
+    broadcastToRoom(room, message, player.socket);
+    player.socket.write(`${message}\r\n> `);
+    return;
+  }
+
+  const emote = EMOTES.find((e) => e.command === cmd.toLowerCase());
+  if (emote) {
+    const message = emote.action(player);
     broadcastToRoom(room, message, player.socket);
     player.socket.write(`${message}\r\n> `);
     return;
@@ -208,6 +219,18 @@ function handleCommand(player, line) {
         .map((p) => `${p.name} (${CLASSES[p.className].label})`)
         .join(', ');
       player.socket.write(`Online: ${names}\r\n> `);
+      break;
+    }
+
+    case 'here': {
+      const others = [...room.players]
+        .filter((p) => p !== player)
+        .map((p) => `${p.name} (${CLASSES[p.className].label})`);
+      if (others.length === 0) {
+        player.socket.write("No one else is here.\r\n> ");
+      } else {
+        player.socket.write(`Here: ${others.join(', ')}\r\n> `);
+      }
       break;
     }
 
