@@ -3,6 +3,7 @@ const { rooms } = require('./world');
 const { loadPlayers, savePlayers } = require('./persistence');
 const { CLASSES } = require('./classes');
 const { EMOTES } = require('./emotes');
+const { isUnique, isDroppable } = require('./items');
 const { hashPassword, verifyPassword } = require('./auth');
 const { version: pkgVersion } = require('./package.json');
 
@@ -27,9 +28,13 @@ function describeRoom(room, viewer) {
   const others = [...room.players]
     .filter((p) => p !== viewer)
     .map((p) => p.name);
+  const visibleItems = room.items.filter((item) => {
+    const alreadyCarrying = viewer.inventory.some((i) => i.toLowerCase() === item.toLowerCase());
+    return !(isUnique(item) && alreadyCarrying);
+  });
   let text = `\r\n${room.name}\r\n${room.description}\r\nExits: ${exits}\r\n`;
-  if (room.items.length > 0) {
-    text += `Items here: ${room.items.join(', ')}\r\n`;
+  if (visibleItems.length > 0) {
+    text += `Items here: ${visibleItems.join(', ')}\r\n`;
   }
   if (others.length > 0) {
     text += `Also here: ${others.join(', ')}\r\n`;
@@ -62,6 +67,8 @@ function buildHelpText(player) {
   if (player.isAdmin) {
     lines.push('', 'Admin commands:');
     lines.push('  resetpassword <username> <newpassword> - reset a user\'s password');
+    lines.push('  deactivate <username>           - deactivate a user\'s account and disconnect them if online');
+    lines.push('  reactivate <username>           - reactivate a deactivated account');
   }
   return lines.join('\r\n');
 }
@@ -72,6 +79,22 @@ function broadcastToRoom(room, message, exceptSocket) {
       player.socket.write(`\r\n${message}\r\n> `);
     }
   }
+}
+
+function dropItems(player, room, itemName, count) {
+  for (let i = 0; i < count; i++) {
+    const idx = player.inventory.findIndex((it) => it.toLowerCase() === itemName.toLowerCase());
+    if (idx !== -1) {
+      player.inventory.splice(idx, 1);
+    }
+  }
+  const alreadyHere = room.items.some((i) => i.toLowerCase() === itemName.toLowerCase());
+  if (!alreadyHere) {
+    room.items.push(itemName);
+  }
+  const description = count > 1 ? `${count} of the ${itemName}` : `the ${itemName}`;
+  broadcastToRoom(room, `${player.name} drops ${description}.`, player.socket);
+  player.socket.write(`You drop ${description}.\r\n> `);
 }
 
 function handleCommand(player, line) {
@@ -158,12 +181,16 @@ function handleCommand(player, line) {
         player.socket.write('Get what?\r\n> ');
         break;
       }
-      const itemIndex = room.items.findIndex((i) => i.toLowerCase() === arg.toLowerCase());
-      if (itemIndex === -1) {
+      const item = room.items.find((i) => i.toLowerCase() === arg.toLowerCase());
+      if (!item) {
         player.socket.write(`There's no ${arg} here.\r\n> `);
         break;
       }
-      const [item] = room.items.splice(itemIndex, 1);
+      const alreadyCarrying = player.inventory.some((i) => i.toLowerCase() === item.toLowerCase());
+      if (isUnique(item) && alreadyCarrying) {
+        player.socket.write(`You already have a ${item}.\r\n> `);
+        break;
+      }
       player.inventory.push(item);
       broadcastToRoom(room, `${player.name} picks up the ${item}.`, player.socket);
       player.socket.write(`You pick up the ${item}.\r\n> `);
@@ -175,15 +202,22 @@ function handleCommand(player, line) {
         player.socket.write('Drop what?\r\n> ');
         break;
       }
-      const itemIndex = player.inventory.findIndex((i) => i.toLowerCase() === arg.toLowerCase());
-      if (itemIndex === -1) {
+      const matches = player.inventory.filter((i) => i.toLowerCase() === arg.toLowerCase());
+      if (matches.length === 0) {
         player.socket.write(`You aren't carrying a ${arg}.\r\n> `);
         break;
       }
-      const [item] = player.inventory.splice(itemIndex, 1);
-      room.items.push(item);
-      broadcastToRoom(room, `${player.name} drops the ${item}.`, player.socket);
-      player.socket.write(`You drop the ${item}.\r\n> `);
+      const itemName = matches[0];
+      if (!isDroppable(itemName)) {
+        player.socket.write(`You can't drop the ${itemName}.\r\n> `);
+        break;
+      }
+      if (matches.length === 1) {
+        dropItems(player, room, itemName, 1);
+        break;
+      }
+      player.pendingDrop = { itemName, available: matches.length };
+      player.socket.write(`You have ${matches.length} of "${itemName}". How many would you like to drop? (1-${matches.length}, or "cancel"): `);
       break;
     }
 
@@ -211,6 +245,55 @@ function handleCommand(player, line) {
       savedPlayers[targetKey] = { ...target, salt, passwordHash: hash };
       savePlayers(savedPlayers);
       player.socket.write(`Password reset for ${target.username}.\r\n> `);
+      break;
+    }
+
+    case 'deactivate': {
+      if (!player.isAdmin) {
+        player.socket.write(`Unknown command: "${cmd}"\r\n> `);
+        break;
+      }
+      const [targetName] = rest;
+      if (!targetName) {
+        player.socket.write('Usage: deactivate <username>\r\n> ');
+        break;
+      }
+      const targetKey = targetName.toLowerCase();
+      const target = savedPlayers[targetKey];
+      if (!target || !target.passwordHash) {
+        player.socket.write(`No account found for "${targetName}".\r\n> `);
+        break;
+      }
+      savedPlayers[targetKey] = { ...target, active: false };
+      savePlayers(savedPlayers);
+      const onlineTarget = [...players.values()].find((p) => p.key === targetKey);
+      if (onlineTarget) {
+        onlineTarget.socket.write('\r\nYour account has been deactivated. Goodbye.\r\n');
+        onlineTarget.socket.end();
+      }
+      player.socket.write(`Account "${target.username}" deactivated.\r\n> `);
+      break;
+    }
+
+    case 'reactivate': {
+      if (!player.isAdmin) {
+        player.socket.write(`Unknown command: "${cmd}"\r\n> `);
+        break;
+      }
+      const [targetName] = rest;
+      if (!targetName) {
+        player.socket.write('Usage: reactivate <username>\r\n> ');
+        break;
+      }
+      const targetKey = targetName.toLowerCase();
+      const target = savedPlayers[targetKey];
+      if (!target || !target.passwordHash) {
+        player.socket.write(`No account found for "${targetName}".\r\n> `);
+        break;
+      }
+      savedPlayers[targetKey] = { ...target, active: true };
+      savePlayers(savedPlayers);
+      player.socket.write(`Account "${target.username}" reactivated.\r\n> `);
       break;
     }
 
@@ -278,11 +361,14 @@ const server = net.createServer((socket) => {
       className,
       isAdmin: !!isAdmin,
       inventory: Array.isArray(inventory) ? inventory : [],
+      pendingDrop: null,
     };
     players.set(socket, player);
     rooms[roomId].players.add(player);
     stage = 'playing';
-    socket.write(`\r\n${CLASSES[className].welcomeMessage(player)}\r\n`);
+    const welcomeMessages = CLASSES[className].welcomeMessages;
+    const welcomeMessage = welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)];
+    socket.write(`\r\n${welcomeMessage(player)}\r\n`);
     socket.write(describeRoom(rooms[roomId], player) + '> ');
     broadcastToRoom(rooms[roomId], `${name} arrives.`, socket);
   }
@@ -352,6 +438,10 @@ const server = net.createServer((socket) => {
       const saved = savedPlayers[key];
       if (!saved || !saved.passwordHash) {
         socket.write("No account found for that username. Type 'back' to start over, or try again. Username: ");
+        return;
+      }
+      if (saved.active === false) {
+        socket.write("This account has been deactivated. Type 'back' to start over, or try again. Username: ");
         return;
       }
       const alreadyOnline = [...players.values()].some((p) => p.key === key);
@@ -427,6 +517,24 @@ const server = net.createServer((socket) => {
       const saved = savedPlayers[pendingKey];
       const roomId = saved && rooms[saved.roomId] ? saved.roomId : choice.startRoomId;
       finishLogin(pendingKey, pendingName, choice.id, roomId, saved && saved.isAdmin, saved && saved.inventory);
+      return;
+    }
+
+    if (player.pendingDrop) {
+      const pending = player.pendingDrop;
+      const raw = input.trim().toLowerCase();
+      if (raw === 'cancel') {
+        player.pendingDrop = null;
+        socket.write('Never mind.\r\n> ');
+        return;
+      }
+      const count = parseInt(raw, 10);
+      if (!Number.isInteger(count) || count < 1 || count > pending.available) {
+        socket.write(`Please enter a number from 1 to ${pending.available}, or "cancel": `);
+        return;
+      }
+      player.pendingDrop = null;
+      dropItems(player, rooms[player.roomId], pending.itemName, count);
       return;
     }
 

@@ -6,7 +6,11 @@ const CLASSES = {
     label: 'The Dude',
     description: 'Takes it easy. Prefers not to be hassled.',
     startRoomId: 'dude_apartment',
-    welcomeMessage: (player) => `Take it easy, ${player.name}. The rug really tied the room together.`,
+    welcomeMessages: [
+      (player) => `Take it easy, ${player.name}. The rug really tied the room together.`,
+      (player) => `Yeah, well, that's just, like, your opinion, man. Welcome, ${player.name}.`,
+      (player) => `The Dude abides, ${player.name}. Come on in.`,
+    ],
     commands: [
       {
         command: 'abide',
@@ -25,7 +29,11 @@ const CLASSES = {
     label: 'Walter',
     description: 'Has rules, and by God, people are going to follow them.',
     startRoomId: 'parking_lot',
-    welcomeMessage: (player) => `Listen up, ${player.name}. There are rules, and you're going to follow them.`,
+    welcomeMessages: [
+      (player) => `Listen up, ${player.name}. There are rules, and you're going to follow them.`,
+      (player) => `${player.name}, over the line! Just kidding. Good to have you.`,
+      (player) => `This is not 'Nam, ${player.name}. This is bowling. There are rules.`,
+    ],
     commands: [
       {
         command: 'rules',
@@ -44,7 +52,11 @@ const CLASSES = {
     label: 'Donny',
     description: "A little out of the loop, but always up for a frame.",
     startRoomId: 'lanes',
-    welcomeMessage: (player) => `Hey, ${player.name}! Good to see you. What's going on?`,
+    welcomeMessages: [
+      (player) => `Hey, ${player.name}! Good to see you. What's going on?`,
+      (player) => `${player.name}? I am the Walrus. Just kidding, glad you're here.`,
+      (player) => `What's happening, ${player.name}? Grab a lane, we're just getting started.`,
+    ],
     commands: [
       {
         command: 'confused',
