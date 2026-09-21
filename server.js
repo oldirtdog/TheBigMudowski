@@ -73,6 +73,146 @@ function buildHelpText(player) {
   return lines.join('\r\n');
 }
 
+function formatPlayerForWho(p) {
+  if (p.accountType === 'admin') {
+    return `${p.name} (Admin)`;
+  }
+  return `${p.name} (${CLASSES[p.className].label})`;
+}
+
+function runResetPassword(player, rest) {
+  if (!player.isAdmin) {
+    player.socket.write('Unknown command: "resetpassword"\r\n> ');
+    return;
+  }
+  const [targetName, newPassword] = rest;
+  if (!targetName || !newPassword) {
+    player.socket.write('Usage: resetpassword <username> <newpassword>\r\n> ');
+    return;
+  }
+  const targetKey = targetName.toLowerCase();
+  const target = savedPlayers[targetKey];
+  if (!target || !target.passwordHash) {
+    player.socket.write(`No account found for "${targetName}".\r\n> `);
+    return;
+  }
+  const { salt, hash } = hashPassword(newPassword);
+  savedPlayers[targetKey] = { ...target, salt, passwordHash: hash };
+  savePlayers(savedPlayers);
+  player.socket.write(`Password reset for ${target.username}.\r\n> `);
+}
+
+function runDeactivate(player, rest) {
+  if (!player.isAdmin) {
+    player.socket.write('Unknown command: "deactivate"\r\n> ');
+    return;
+  }
+  const [targetName] = rest;
+  if (!targetName) {
+    player.socket.write('Usage: deactivate <username>\r\n> ');
+    return;
+  }
+  const targetKey = targetName.toLowerCase();
+  const target = savedPlayers[targetKey];
+  if (!target || !target.passwordHash) {
+    player.socket.write(`No account found for "${targetName}".\r\n> `);
+    return;
+  }
+  savedPlayers[targetKey] = { ...target, active: false };
+  savePlayers(savedPlayers);
+  const onlineTarget = [...players.values()].find((p) => p.key === targetKey);
+  if (onlineTarget) {
+    onlineTarget.socket.write('\r\nYour account has been deactivated. Goodbye.\r\n');
+    onlineTarget.socket.end();
+  }
+  player.socket.write(`Account "${target.username}" deactivated.\r\n> `);
+}
+
+function runReactivate(player, rest) {
+  if (!player.isAdmin) {
+    player.socket.write('Unknown command: "reactivate"\r\n> ');
+    return;
+  }
+  const [targetName] = rest;
+  if (!targetName) {
+    player.socket.write('Usage: reactivate <username>\r\n> ');
+    return;
+  }
+  const targetKey = targetName.toLowerCase();
+  const target = savedPlayers[targetKey];
+  if (!target || !target.passwordHash) {
+    player.socket.write(`No account found for "${targetName}".\r\n> `);
+    return;
+  }
+  savedPlayers[targetKey] = { ...target, active: true };
+  savePlayers(savedPlayers);
+  player.socket.write(`Account "${target.username}" reactivated.\r\n> `);
+}
+
+const ADMIN_COMMANDS = [
+  { command: 'resetpassword', usage: 'resetpassword <username> <newpassword>', description: "reset a user's password" },
+  { command: 'deactivate', usage: 'deactivate <username>', description: "deactivate a user's account and disconnect them if online" },
+  { command: 'reactivate', usage: 'reactivate <username>', description: 'reactivate a deactivated account' },
+  { command: 'who', usage: 'who', description: 'list who is online' },
+  { command: 'help', usage: 'help', description: 'show this menu' },
+  { command: 'quit', usage: 'quit', description: 'disconnect' },
+];
+
+function buildAdminMenuText() {
+  const lines = ['Admin console. Choose a command by number, or type it directly:'];
+  ADMIN_COMMANDS.forEach((c, i) => lines.push(`  ${i + 1}. ${c.usage}`));
+  return lines.join('\r\n');
+}
+
+function buildAdminHelpText() {
+  const lines = ['Admin console commands:'];
+  ADMIN_COMMANDS.forEach((c, i) => lines.push(`  ${i + 1}. ${c.usage.padEnd(45)} - ${c.description}`));
+  return lines.join('\r\n');
+}
+
+function handleAdminCommand(player, line) {
+  const input = line.trim();
+  if (!input) {
+    player.socket.write('> ');
+    return;
+  }
+  const [rawCmd, ...rest] = input.split(/\s+/);
+  const menuIndex = parseInt(rawCmd, 10);
+  const cmd = (!isNaN(menuIndex) && ADMIN_COMMANDS[menuIndex - 1]) ? ADMIN_COMMANDS[menuIndex - 1].command : rawCmd;
+
+  switch (cmd.toLowerCase()) {
+    case 'resetpassword':
+      runResetPassword(player, rest);
+      break;
+
+    case 'deactivate':
+      runDeactivate(player, rest);
+      break;
+
+    case 'reactivate':
+      runReactivate(player, rest);
+      break;
+
+    case 'who': {
+      const names = [...players.values()].map(formatPlayerForWho).join(', ');
+      player.socket.write(`Online: ${names}\r\n> `);
+      break;
+    }
+
+    case 'help':
+      player.socket.write(`\r\n${buildAdminHelpText()}\r\n> `);
+      break;
+
+    case 'quit':
+      player.socket.write('Goodbye!\r\n');
+      player.socket.end();
+      break;
+
+    default:
+      player.socket.write(`Unknown command: "${cmd}"\r\n> `);
+  }
+}
+
 function broadcastToRoom(room, message, exceptSocket) {
   for (const player of room.players) {
     if (player.socket !== exceptSocket) {
@@ -225,82 +365,20 @@ function handleCommand(player, line) {
       player.socket.write(`\r\n${buildHelpText(player)}\r\n> `);
       break;
 
-    case 'resetpassword': {
-      if (!player.isAdmin) {
-        player.socket.write(`Unknown command: "${cmd}"\r\n> `);
-        break;
-      }
-      const [targetName, newPassword] = rest;
-      if (!targetName || !newPassword) {
-        player.socket.write('Usage: resetpassword <username> <newpassword>\r\n> ');
-        break;
-      }
-      const targetKey = targetName.toLowerCase();
-      const target = savedPlayers[targetKey];
-      if (!target || !target.passwordHash) {
-        player.socket.write(`No account found for "${targetName}".\r\n> `);
-        break;
-      }
-      const { salt, hash } = hashPassword(newPassword);
-      savedPlayers[targetKey] = { ...target, salt, passwordHash: hash };
-      savePlayers(savedPlayers);
-      player.socket.write(`Password reset for ${target.username}.\r\n> `);
+    case 'resetpassword':
+      runResetPassword(player, rest);
       break;
-    }
 
-    case 'deactivate': {
-      if (!player.isAdmin) {
-        player.socket.write(`Unknown command: "${cmd}"\r\n> `);
-        break;
-      }
-      const [targetName] = rest;
-      if (!targetName) {
-        player.socket.write('Usage: deactivate <username>\r\n> ');
-        break;
-      }
-      const targetKey = targetName.toLowerCase();
-      const target = savedPlayers[targetKey];
-      if (!target || !target.passwordHash) {
-        player.socket.write(`No account found for "${targetName}".\r\n> `);
-        break;
-      }
-      savedPlayers[targetKey] = { ...target, active: false };
-      savePlayers(savedPlayers);
-      const onlineTarget = [...players.values()].find((p) => p.key === targetKey);
-      if (onlineTarget) {
-        onlineTarget.socket.write('\r\nYour account has been deactivated. Goodbye.\r\n');
-        onlineTarget.socket.end();
-      }
-      player.socket.write(`Account "${target.username}" deactivated.\r\n> `);
+    case 'deactivate':
+      runDeactivate(player, rest);
       break;
-    }
 
-    case 'reactivate': {
-      if (!player.isAdmin) {
-        player.socket.write(`Unknown command: "${cmd}"\r\n> `);
-        break;
-      }
-      const [targetName] = rest;
-      if (!targetName) {
-        player.socket.write('Usage: reactivate <username>\r\n> ');
-        break;
-      }
-      const targetKey = targetName.toLowerCase();
-      const target = savedPlayers[targetKey];
-      if (!target || !target.passwordHash) {
-        player.socket.write(`No account found for "${targetName}".\r\n> `);
-        break;
-      }
-      savedPlayers[targetKey] = { ...target, active: true };
-      savePlayers(savedPlayers);
-      player.socket.write(`Account "${target.username}" reactivated.\r\n> `);
+    case 'reactivate':
+      runReactivate(player, rest);
       break;
-    }
 
     case 'who': {
-      const names = [...players.values()]
-        .map((p) => `${p.name} (${CLASSES[p.className].label})`)
-        .join(', ');
+      const names = [...players.values()].map(formatPlayerForWho).join(', ');
       player.socket.write(`Online: ${names}\r\n> `);
       break;
     }
@@ -308,7 +386,7 @@ function handleCommand(player, line) {
     case 'here': {
       const others = [...room.players]
         .filter((p) => p !== player)
-        .map((p) => `${p.name} (${CLASSES[p.className].label})`);
+        .map(formatPlayerForWho);
       if (others.length === 0) {
         player.socket.write("No one else is here.\r\n> ");
       } else {
@@ -371,6 +449,23 @@ const server = net.createServer((socket) => {
     socket.write(`\r\n${welcomeMessage(player)}\r\n`);
     socket.write(describeRoom(rooms[roomId], player) + '> ');
     broadcastToRoom(rooms[roomId], `${name} arrives.`, socket);
+  }
+
+  function finishAdminLogin(key, name) {
+    player = {
+      key,
+      name,
+      socket,
+      accountType: 'admin',
+      isAdmin: true,
+      roomId: null,
+      className: null,
+      inventory: [],
+      pendingDrop: null,
+    };
+    players.set(socket, player);
+    stage = 'admin';
+    socket.write(`\r\n${buildAdminMenuText()}\r\n> `);
   }
 
   function handleLine(input) {
@@ -460,6 +555,10 @@ const server = net.createServer((socket) => {
     if (stage === 'enter_password') {
       const saved = savedPlayers[pendingKey];
       if (verifyPassword(input, saved.salt, saved.passwordHash)) {
+        if (saved.accountType === 'admin') {
+          finishAdminLogin(pendingKey, pendingName);
+          return;
+        }
         const roomId = rooms[saved.roomId] ? saved.roomId : CLASSES[saved.className].startRoomId;
         finishLogin(pendingKey, pendingName, saved.className, roomId, saved.isAdmin, saved.inventory);
         return;
@@ -499,6 +598,13 @@ const server = net.createServer((socket) => {
       savePlayers(savedPlayers);
       pendingUsernames.delete(pendingKey);
 
+      if (pendingKey === 'admin') {
+        savedPlayers[pendingKey] = { ...savedPlayers[pendingKey], accountType: 'admin', isAdmin: true };
+        savePlayers(savedPlayers);
+        finishAdminLogin(pendingKey, pendingName);
+        return;
+      }
+
       if (existing && CLASSES[existing.className] && rooms[existing.roomId]) {
         finishLogin(pendingKey, existing.username || pendingName, existing.className, existing.roomId, existing.isAdmin, existing.inventory);
         return;
@@ -517,6 +623,11 @@ const server = net.createServer((socket) => {
       const saved = savedPlayers[pendingKey];
       const roomId = saved && rooms[saved.roomId] ? saved.roomId : choice.startRoomId;
       finishLogin(pendingKey, pendingName, choice.id, roomId, saved && saved.isAdmin, saved && saved.inventory);
+      return;
+    }
+
+    if (stage === 'admin') {
+      handleAdminCommand(player, input);
       return;
     }
 
@@ -558,18 +669,27 @@ const server = net.createServer((socket) => {
       pendingUsernames.delete(pendingKey);
     }
     if (player) {
-      const room = rooms[player.roomId];
-      room.players.delete(player);
-      broadcastToRoom(room, `${player.name} has disconnected.`);
       players.delete(socket);
-      savedPlayers[player.key] = {
-        ...savedPlayers[player.key],
-        username: player.name,
-        roomId: player.roomId,
-        className: player.className,
-        isAdmin: player.isAdmin,
-        inventory: player.inventory,
-      };
+      if (player.accountType === 'admin') {
+        savedPlayers[player.key] = {
+          ...savedPlayers[player.key],
+          username: player.name,
+          accountType: 'admin',
+          isAdmin: true,
+        };
+      } else {
+        const room = rooms[player.roomId];
+        room.players.delete(player);
+        broadcastToRoom(room, `${player.name} has disconnected.`);
+        savedPlayers[player.key] = {
+          ...savedPlayers[player.key],
+          username: player.name,
+          roomId: player.roomId,
+          className: player.className,
+          isAdmin: player.isAdmin,
+          inventory: player.inventory,
+        };
+      }
       savePlayers(savedPlayers);
     }
   });

@@ -25,9 +25,11 @@ Legend: `[ ]` not started · `[~]` built, awaiting your review · `[x]` done, co
 
 ## Admin
 - [ ] Admin panel (in-game admin commands or a separate tool)
-- [ ] Support a dedicated admin account type with no character/class, restricted to administrative commands only (distinct from today's approach of flagging a regular player account as admin)
+- [~] Support a dedicated admin account type with no character/class, restricted to administrative commands only (distinct from today's approach of flagging a regular player account as admin) — the username `admin` is special-cased at creation to skip class selection and land in a restricted admin console (resetpassword/deactivate/reactivate/who/help/quit only, no room or character)
 - [x] Reset a user's password (admin-only `resetpassword <username> <newpassword>` command; mark an account as admin by hand-setting `isAdmin: true` in its save-file entry until a real admin panel exists)
 - [~] Deactivate / reactivate a user account — admin-only `deactivate <username>` / `reactivate <username>` commands; deactivating an online user disconnects them immediately and blocks login until reactivated
+- [ ] Give the admin console a searchable user database instead of requiring the exact username per command (search by partial name, list matches)
+- [ ] Rework the admin console flow to select-then-act: prompt to search/select a target user first, then show the per-user admin command menu (reset password, deactivate/reactivate, etc.) scoped to that selected user, instead of typing `<command> <username>` each time
 
 ## World content
 - [x] Add items players can pick up / drop (e.g. a rug, a bowling ball) — added a rug, bowling ball, and slice of pie so far; not persisted across server restarts yet
@@ -40,7 +42,7 @@ Legend: `[ ]` not started · `[~]` built, awaiting your review · `[x]` done, co
 - [x] Design a class system with The Dude, Walter, and Donny as the base classes
 - [x] Define what makes each class distinct (each has 2 flavor/role-play commands for now; stats/abilities once combat exists)
 - [x] Let players pick a class at character creation (numbered choice at login)
-- [~] Add multiple welcome messages per class and pick one at random on each login — three per class now
+- [x] Add multiple welcome messages per class and pick one at random on each login — three per class now
 
 ## Items to create
 - [ ] (add items here as we think of them)
@@ -63,6 +65,7 @@ Legend: `[ ]` not started · `[~]` built, awaiting your review · `[x]` done, co
 - [x] Help command listing available commands
 - [x] Room-scoped "who's here" command, separate from global `who` (which lists everyone online) — note `look` already lists other players in the room via "Also here: ...", so this would be a quicker one-word alternative to a full room description; added as `here`
 - [ ] Admin (or story-triggered) override to force-drop a normally non-droppable item like the rug ("special situations")
+- [ ] "Exit to login" command — return to the login/new-vs-returning prompt without disconnecting the telnet connection, as an alternative to `quit`
 
 ## Polish
 - [x] Handle edge cases (empty names, duplicate names, disconnects mid-command) — added username character/length validation, a lock so two people can't register the same new username at once, and rejection of whitespace-only passwords
