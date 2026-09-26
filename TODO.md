@@ -74,7 +74,7 @@ Legend: `[ ]` not started · `[~]` built, awaiting your review · `[x]` done, co
 - [ ] Mask password input while typing (show `*` per keystroke instead of the typed character; needs telnet echo-suppression); encrypt the connection before any public hosting, since passwords currently travel as plain text
 
 ## Deployment (long term)
-- [ ] Move the server to Jonathan's home server
-- [ ] Set up public hosting (open port/firewall, keep process running, point a doroyal.com subdomain to it)
+- [x] ~~Move the server to Jonathan's home server~~ — superseded; deployed to mudhaven.net instead via GitHub (TheBigMudowski repo, SSH deploy key) rather than a home server
+- [x] Set up public hosting — live on mudhaven.net (systemd --user, nvm, deploy key over 443)
 - [ ] Daily 9am scheduled task: prompt Jonathan for 3 TODO items to work on that day, implement them on dev without committing/checking off (tabled — needs a git remote like GitHub first, since cloud scheduled agents can't see the local-only repo)
 - [ ] Build a real deploy step for pushing a milestone from dev to prod (beyond just running `npm start` locally)
